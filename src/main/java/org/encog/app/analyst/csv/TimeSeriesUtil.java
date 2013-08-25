@@ -76,8 +76,8 @@ public class TimeSeriesUtil {
 	/**
 	 * The heading map.
 	 */
-	private final Map<String, Integer> headingMap 
-		= new HashMap<String, Integer>();
+	private final Map<String, int[]> headingMap 
+		= new HashMap<String, int[]>();
 
 	/**
 	 * Construct the time-series utility.
@@ -93,10 +93,21 @@ public class TimeSeriesUtil {
 		this.inputSize = includeOutput ? analyst.determineTotalColumns() : analyst.determineTotalInputFieldCount();
 		this.outputSize = analyst.determineInputCount()
 				+ analyst.determineOutputCount();
-
+		
 		int headingIndex = 0;
-		for (final String column : headings) {
-			this.headingMap.put(column, headingIndex++);
+		
+		for(AnalystField f:analyst.getScript().getNormalize().getNormalizedFields())
+		{
+			if(f.isIgnored())
+				continue;
+			
+			int[] tab = new int[2];
+			
+			tab[0]=headingIndex;
+			tab[1]=f.getColumnsNeeded();
+			headingIndex+=tab[1];
+			
+			this.headingMap.put(f.getName(), tab);
 		}
 	}
 
@@ -117,7 +128,7 @@ public class TimeSeriesUtil {
 	/**
 	 * @return the headingMap
 	 */
-	public Map<String, Integer> getHeadingMap() {
+	public Map<String, int[]> getHeadingMap() {
 		return this.headingMap;
 	}
 
@@ -185,11 +196,15 @@ public class TimeSeriesUtil {
 					throw new AnalystError("Undefined field: "
 							+ field.getName());
 				}
-				final int headingIndex = this.headingMap.get(field.getName());
+				final int[] headingIndex = this.headingMap.get(field.getName());
 				final int timeslice = translateTimeSlice(field.getTimeSlice());
+				
 				final double[] row = this.buffer.get(timeslice);
-				final double d = row[headingIndex];
-				output[outputIndex++] = d;
+				for(int i = 0;i<headingIndex[1];i++)
+				{
+					final double d = row[headingIndex[0]+i];
+					output[outputIndex++] = d;
+				}
 			}
 		}
 
